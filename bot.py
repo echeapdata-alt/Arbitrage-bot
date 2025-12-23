@@ -1,7 +1,28 @@
 import requests
 
-url = "https://api.binance.com/api/v3/ticker/price"
-prices = requests.get(url).json()
+def get_prices():
+    url = "https://api.bybit.com/v5/market/tickers?category=spot"
+    r = requests.get(url, timeout=10)
+    data = r.json()
 
-for coin in prices[:10]:  # just showing first 10 coins for testing
-    print(coin["symbol"], coin["price"])
+    prices = {}
+    for item in data["result"]["list"]:
+        prices[item["symbol"]] = float(item["lastPrice"])
+
+    return prices
+
+
+def main():
+    print("Fetching prices...")
+    prices = get_prices()
+
+    count = 0
+    for symbol, price in prices.items():
+        print(symbol, price)
+        count += 1
+        if count == 10:
+            break
+
+
+if __name__ == "__main__":
+    main()
