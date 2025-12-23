@@ -1,6 +1,7 @@
 import requests
+import time
 
-def get_prices():
+def get_prices(retries=3, delay=5):
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
         "vs_currency": "usd",
@@ -10,36 +11,21 @@ def get_prices():
         "sparkline": False
     }
 
-    try:
-        r = requests.get(url, params=params, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-    except Exception as e:
-        print("ERROR fetching data:", e)
-        return {}
-
-    prices = {}
-    for item in data:
-        prices[item["symbol"].upper() + "USD"] = float(item["current_price"])
-    return prices
-
-
-def main():
-    print("Fetching prices...")
-    prices = get_prices()
-
-    if not prices:
-        print("No prices fetched. Check API or network.")
-        return
-
-    # Show first 10 coins for testing
-    count = 0
-    for symbol, price in prices.items():
-        print(symbol, price)
-        count += 1
-        if count == 10:
+    for attempt in range(retries):
+        try:
+            r = requests.get(url, params=params, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            prices = {item["symbol"].upper() + "USD": float(item["current_price"]) for item in data}
+            return prices
+        except requests.exceptions.HTTPError as e:
+            if r.status_code == 429:
+                print(f"Rate limited by CoinGecko. Waiting {delay}s before retry {attempt+1}/{retries}...")
+                time.sleep(delay)
+            else:
+                print("HTTP error:", e)
+                break
+        except Exception as e:
+            print("Other error:", e)
             break
-
-
-if __name__ == "__main__":
-    main()
+    return {}
