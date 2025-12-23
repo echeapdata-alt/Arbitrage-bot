@@ -1,26 +1,45 @@
 import requests
 
 def get_prices():
-    url = "https://api.bybit.com/v5/market/tickers?category=spot"
-    r = requests.get(url, timeout=15)
-
-    # DEBUG: show status if something is wrong
-    if r.status_code != 200:
-        print("HTTP ERROR:", r.status_code)
-        print(r.text)
-        return {}
+    url = "https://api.coingecko.com/api/v3/coins/markets"
+    params = {
+        "vs_currency": "usd",
+        "order": "market_cap_desc",
+        "per_page": 250,
+        "page": 1,
+        "sparkline": False
+    }
 
     try:
+        r = requests.get(url, params=params, timeout=15)
+        r.raise_for_status()
         data = r.json()
     except Exception as e:
-        print("JSON ERROR:", e)
-        print("RAW RESPONSE:")
-        print(r.text)
+        print("ERROR fetching data:", e)
         return {}
 
     prices = {}
-    if "result" in data and "list" in data["result"]:
-        for item in data["result"]["list"]:
-            prices[item["symbol"]] = float(item["lastPrice"])
-
+    for item in data:
+        prices[item["symbol"].upper() + "USD"] = float(item["current_price"])
     return prices
+
+
+def main():
+    print("Fetching prices...")
+    prices = get_prices()
+
+    if not prices:
+        print("No prices fetched. Check API or network.")
+        return
+
+    # Show first 10 coins for testing
+    count = 0
+    for symbol, price in prices.items():
+        print(symbol, price)
+        count += 1
+        if count == 10:
+            break
+
+
+if __name__ == "__main__":
+    main()
