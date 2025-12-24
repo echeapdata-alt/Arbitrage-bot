@@ -1,34 +1,59 @@
 import requests
 import time
 
-BASE_AMOUNT = 100  # start with 100 USDT
-THRESHOLD = 0.2    # % profit needed
+BASE_AMOUNT = 100
+THRESHOLD = 0.2
 
-def price(symbol):
-    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
-    return float(requests.get(url, timeout=10).json()["price"])
+HEADERS = {
+    "User-Agent": "Mozilla/5.0"
+}
 
-while True:
+def get_price(symbol):
+    url = "https://api.binance.com/api/v3/ticker/price"
     try:
-        btc_usdt = price("BTCUSDT")
-        eth_btc  = price("ETHBTC")
-        eth_usdt = price("ETHUSDT")
+        r = requests.get(url, params={"symbol": symbol}, headers=HEADERS, timeout=10)
 
-        btc = BASE_AMOUNT / btc_usdt
-        eth = btc / eth_btc
-        final_usdt = eth * eth_usdt
+        if r.status_code != 200:
+            print(f"HTTP error {r.status_code} for {symbol}")
+            return None
 
-        profit = final_usdt - BASE_AMOUNT
-        percent = (profit / BASE_AMOUNT) * 100
+        data = r.json()
 
-        print(f"\nStart: {BASE_AMOUNT} USDT")
-        print(f"End:   {final_usdt:.4f} USDT")
-        print(f"Profit: {profit:.4f} USDT ({percent:.3f}%)")
+        if "price" not in data:
+            print(f"Invalid response for {symbol}: {data}")
+            return None
 
-        if percent > THRESHOLD:
-            print("🔥 TRIANGULAR ARBITRAGE OPPORTUNITY 🔥")
+        return float(data["price"])
 
     except Exception as e:
-        print("Error:", e)
+        print(f"Request error for {symbol}: {e}")
+        return None
 
-    time.sleep(5)
+
+while True:
+    print("\nFetching prices...")
+
+    btc_usdt = get_price("BTCUSDT")
+    eth_btc  = get_price("ETHBTC")
+    eth_usdt = get_price("ETHUSDT")
+
+    if None in (btc_usdt, eth_btc, eth_usdt):
+        print("Price fetch failed, retrying...")
+        time.sleep(5)
+        continue
+
+    btc = BASE_AMOUNT / btc_usdt
+    eth = btc / eth_btc
+    final_usdt = eth * eth_usdt
+
+    profit = final_usdt - BASE_AMOUNT
+    percent = (profit / BASE_AMOUNT) * 100
+
+    print(f"Start: {BASE_AMOUNT} USDT")
+    print(f"End:   {final_usdt:.4f} USDT")
+    print(f"Profit: {profit:.4f} USDT ({percent:.3f}%)")
+
+    if percent > THRESHOLD:
+        print("🔥 TRIANGULAR ARBITRAGE OPPORTUNITY 🔥")
+
+    time.sleep(8)
