@@ -1,58 +1,34 @@
 import requests
 import time
 
-# Function to fetch prices from CoinGecko
-def get_prices():
-    url = "https://api.coingecko.com/api/v3/coins/markets"
-    params = {
-        "vs_currency": "usd",
-        "order": "market_cap_desc",
-        "per_page": 250,
-        "page": 1,
-        "sparkline": "false"
-    }
+BASE_AMOUNT = 100  # start with 100 USDT
+THRESHOLD = 0.2    # % profit needed
 
-    for attempt in range(5):
-        try:
-            r = requests.get(url, params=params, timeout=10)
-            
-            if r.status_code == 429:
-                print("Rate limit hit. Waiting 10 seconds...")
-                time.sleep(10)
-                continue
-            
-            r.raise_for_status()
-            
-            data = r.json()
-            if not data:
-                print("No data received. Retrying...")
-                time.sleep(5)
-                continue
+def price(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
+    return float(requests.get(url, timeout=10).json()["price"])
 
-            # Create dictionary of coin symbol -> price
-            prices = {coin['symbol'].upper(): coin['current_price'] for coin in data}
-            return prices
+while True:
+    try:
+        btc_usdt = price("BTCUSDT")
+        eth_btc  = price("ETHBTC")
+        eth_usdt = price("ETHUSDT")
 
-        except Exception as e:
-            print(f"Error fetching data: {e}")
-            time.sleep(5)
+        btc = BASE_AMOUNT / btc_usdt
+        eth = btc / eth_btc
+        final_usdt = eth * eth_usdt
 
-    print("No prices fetched. Check API or network.")
-    return {}
+        profit = final_usdt - BASE_AMOUNT
+        percent = (profit / BASE_AMOUNT) * 100
 
-# Main loop
-def main():
-    print("Starting arbitrage bot...")
-    while True:
-        prices = get_prices()
-        if prices:
-            print("Fetched prices successfully!")
-            # Show first 10 coins for testing
-            for coin, price in list(prices.items())[:10]:
-                print(f"{coin}: ${price}")
-        else:
-            print("No prices fetched this round.")
-        time.sleep(60)  # wait 1 minute before next fetch
+        print(f"\nStart: {BASE_AMOUNT} USDT")
+        print(f"End:   {final_usdt:.4f} USDT")
+        print(f"Profit: {profit:.4f} USDT ({percent:.3f}%)")
 
-if __name__ == "__main__":
-    main()
+        if percent > THRESHOLD:
+            print("🔥 TRIANGULAR ARBITRAGE OPPORTUNITY 🔥")
+
+    except Exception as e:
+        print("Error:", e)
+
+    time.sleep(5)
